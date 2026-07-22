@@ -12,7 +12,6 @@ from .modules import create_js_module
 
 
 class JSString(str):
-    """A subclass of string, so we can add attributes to JS string objects."""
 
     pass
 
@@ -70,7 +69,6 @@ def py2js(ob=None, new_name=None, **parser_options):
                 pycode = "\n" + pycode.split("\n", 1)[-1]
         elif isinstance(ob, (type, types.FunctionType, types.MethodType)):
             thetype = "class" if isinstance(ob, type) else "def"
-            # Get code
             try:
                 filename = inspect.getsourcefile(ob)
                 lines, linenr = inspect.getsourcelines(ob)
@@ -83,7 +81,6 @@ def py2js(ob=None, new_name=None, **parser_options):
                     "py2js() got anonymous function from "
                     '"%s", line %i, %r.' % (filename, linenr, ob)
                 )
-            # Normalize indentation, based on first line
             indent = len(lines[0]) - len(lines[0].lstrip())
             for i in range(len(lines)):
                 line = lines[i]
@@ -93,22 +90,18 @@ def py2js(ob=None, new_name=None, **parser_options):
                     lines[i] = indent * " " + line.lstrip()
                 else:
                     lines[i] = line[indent:]
-            # Skip any decorators
             while not lines[0].lstrip().startswith((thetype, "async " + thetype)):
                 lines.pop(0)
-            # join lines and rename
             pycode = "".join(lines)
         else:
             raise ValueError(
                 "py2js() only accepts non-builtin modules, classes and functions."
             )
 
-        # Get hash, in case we ever want to cache JS accross sessions
         h = hashlib.sha256("pscript version 1".encode())
         h.update(pycode.encode())
         hash = h.digest()
 
-        # Get JS code
         if filename:
             p = Parser(pycode, (filename, linenr), **parser_options)
         else:
@@ -119,17 +112,12 @@ def py2js(ob=None, new_name=None, **parser_options):
                 raise TypeError("py2js() can only rename functions and classes.")
             jscode = js_rename(jscode, ob.__name__, new_name, thetype)
 
-        # Collect undefined variables
-        # vars_unknown = [name for name, s in p.vars.get_undefined()]
         vars_unknown = set()
         for _name, usages in p.vars.get_undefined():
             for usage in usages:
                 vars_unknown.add(usage)
 
-        # todo: now that we have so much info in the meta, maybe we should
-        # use use py2js everywhere where we now use Parser and move its docs here.
 
-        # Wrap in JSString
         jscode = JSString(jscode)
         jscode.meta = {}
         jscode.meta["filename"] = filename
@@ -176,7 +164,6 @@ def js_rename(jscode, cur_name, new_name, type=None):
     else:
         isclass = cur_name[0].lower() != cur_name[0]  # For backward compat.
     if isclass:
-        # cur_cls_name = cur_name
         new_cls_name = new_name.split(".")[-1]
     else:
         new_cls_name = ""
@@ -191,22 +178,18 @@ def js_rename(jscode, cur_name, new_name, type=None):
     cur_name_short = cur_name.split(".")[-1]
     new_name_short = new_name.split(".")[-1]
     if isclass:
-        # If this is about a class ...
         jscode = jscode.replace(
             '.__name__ = "%s"' % cur_name_short, '.__name__ = "%s"' % new_name_short
         )
         jscode = jscode.replace("._%s__" % cur_name_short, "._%s__" % new_name_short)
         jscode = jscode.replace("%s.prototype" % cur_name, "%s.prototype" % new_name)
     else:
-        # If this is about a function / method
         jscode = jscode.replace(
             "function flx_%s" % cur_name_short, "function flx_%s" % new_name_short, 1
         )
         if new_cls_name:  # use regexp to match double-underscore but no magics!
             jscode = re_sub1.sub("this._%s__\\1" % new_cls_name, jscode)
-            # jscode = jscode.replace('this.__', 'this._%s__' % new_cls_name)
 
-    # Always do this
     jscode = jscode.replace("%s = function" % cur_name, "%s = function" % new_name, 1)
     jscode = jscode.replace(
         "%s = async function" % cur_name, "%s = async function" % new_name, 1
@@ -230,8 +213,6 @@ def get_node_exe():
     is called both 'nodejs' and 'node' are tried. To override the
     executable path, set the ``PSCRIPT_NODE_EXE`` environment variable.
     """
-    # This makes things work on Ubuntu's nodejs as well as other node
-    # implementations, and allows users to set the node exe if necessary
     global NODE_EXE
     NODE_EXE = os.getenv("PSCRIPT_NODE_EXE", os.getenv("FLEXX_NODE_EXE")) or NODE_EXE
     if NODE_EXE is None:
@@ -263,15 +244,12 @@ def evaljs(jscode, whitespace=True, print_result=True, extra_nodejs_args=None):
     """
     global _eval_count
 
-    # Init command
     cmd = [get_node_exe()]
     if extra_nodejs_args:
         cmd.extend(extra_nodejs_args)
 
-    # Prepare command
     if len(jscode) > 2**14:
         if print_result:
-            # Strictly speaking, this is a limitation of Windows, but come-on!
             raise RuntimeError(
                 "evaljs() wont send more than 16 kB of code "
                 "over the command line, but cannot use a file "
@@ -288,7 +266,6 @@ def evaljs(jscode, whitespace=True, print_result=True, extra_nodejs_args=None):
         p_or_e = ["-p", "-e"] if print_result else ["-e"]
         cmd += ["--use_strict"] + p_or_e + [jscode]
 
-    # Call node
     try:
         res = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
     except Exception as err:
@@ -305,7 +282,6 @@ def evaljs(jscode, whitespace=True, print_result=True, extra_nodejs_args=None):
             except Exception:
                 pass
 
-    # Process result
     res = res.decode().rstrip()
     if print_result and res.endswith("undefined"):
         res = res[:-9].rstrip()
@@ -325,7 +301,6 @@ def evalpy(pycode, whitespace=True):
     Returns:
         str: the last result as a string.
     """
-    # delibirate numpy doc style to see if napoleon handles it the same
     return evaljs(py2js(pycode), whitespace)
 
 
@@ -344,19 +319,15 @@ def script2js(
       parser_options: additional options for the parser. See Parser class
         for details.
     """
-    # Import
     assert filename.endswith(".py")
     pycode = open(filename, "rb").read().decode()
-    # Convert
     parser = Parser(pycode, filename, **parser_options)
     jscode = "/* Do not edit, autogenerated by pscript */\n\n" + parser.dump()
-    # Wrap in module
     if namespace:
         exports = [
             name for name in parser.vars.get_defined() if not name.startswith("_")
         ]
         jscode = create_js_module(namespace, jscode, [], exports, module_type)
-    # Export
     if target is None:
         dirname, fname = os.path.split(filename)
         filename2 = os.path.join(dirname, fname[:-3] + ".js")

@@ -1,16 +1,3 @@
-"""
-Functionality used for testing, based on pytest. This module is designed
-to just work, without modification, in most projects.
-
-Write your tests like this:
-
-    from yourproject.xxx.testing import run_tests_if_main, raises, skipif
-    ...
-    run_tests_if_main()
-
-Then you can run the test file as a script, which will run all tests
-and report coverage. Magic!
-"""
 
 import os
 import sys
@@ -21,7 +8,6 @@ import pytest
 
 PACKAGE_NAME = __name__.split(".")[0]
 
-# Get project root dir
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 ROOT_DIR = THIS_DIR
 for _i in range(9):
@@ -37,7 +23,6 @@ else:
     ROOT_DIR = THIS_DIR
 
 
-# Inject some function names so they can be obtained with one import
 raises = pytest.raises
 skipif = pytest.mark.skipif
 skip = pytest.skip
@@ -52,7 +37,6 @@ def run_tests_if_main(show_coverage=False):
     local_vars = inspect.currentframe().f_back.f_locals
     if not local_vars.get("__name__", "") == "__main__":
         return
-    # we are in a "__main__"
     os.chdir(ROOT_DIR)
     fname = str(local_vars["__file__"])
     _clear_our_modules()

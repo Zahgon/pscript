@@ -1,11 +1,7 @@
-"""
-Functionality for creating JS modules of various formats, including AMD and UMD.
-"""
 
 import re
 
 
-# Immediately Invoked Function Expression (IIFE)
 HIDDEN = """
 (function () {
 
@@ -45,7 +41,6 @@ return {exports};
 AMD_FLEXX = "flexx." + AMD
 
 
-# https://github.com/umdjs/umd/blob/master/returnExports.js
 UMD = """
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
@@ -73,10 +68,7 @@ return {exports};
 
 
 def isidentifier(s):
-    # http://stackoverflow.com/questions/2544972/
-    if not isinstance(s, str):
-        return False
-    return re.match(r"^\w+$", s, re.UNICODE) and re.match(r"^[0-9]", s) is None
+    pass
 
 
 def create_js_module(name, code, imports, exports, type="umd"):
@@ -99,7 +91,6 @@ def create_js_module(name, code, imports, exports, type="umd"):
             'umd' (case insensitive). Default 'umd'.
     """
 
-    # Check input args
     if not isinstance(name, str) or not name:
         raise ValueError("create_module() name arg must be a (nonempty) string.")
     if not isinstance(code, str):
@@ -109,7 +100,6 @@ def create_js_module(name, code, imports, exports, type="umd"):
     if not isinstance(exports, (str, tuple, list)):
         raise ValueError("create_module() exports arg must be a string or list.")
 
-    # Process imports
     deps, dep_names = [], []
     for imp in imports:
         if not isinstance(imp, str):
@@ -123,7 +113,6 @@ def create_js_module(name, code, imports, exports, type="umd"):
         deps.append(dep)
         dep_names.append(dep_name)
 
-    # Process exports
     if isinstance(exports, str):
         return_val = exports
     else:  # list
@@ -133,7 +122,6 @@ def create_js_module(name, code, imports, exports, type="umd"):
         return_val = ", ".join(["%s: %s" % (exp, exp) for exp in exports])
         return_val = "{" + return_val + "}"
 
-    # Process type -> select template
     types = {
         "hidden": HIDDEN,
         "simple": SIMPLE,
@@ -147,13 +135,11 @@ def create_js_module(name, code, imports, exports, type="umd"):
         raise ValueError("create_js_module() got invalid type %r" % type)
     template = types[type.lower()]
 
-    # Derived information needed to populate the module templates
     save_name = lambda n: n.split("/")[-1].split(".")[0].replace("-", "_")
     dep_strings = ['"%s"' % dep for dep in deps]
     dep_fullnames = ["root." + save_name(dep) for dep in deps]
     dep_requires = ['require("%s")' % dep for dep in deps]
 
-    # Fill in the template
     for key, val in [
         ("{name}", name),
         ("{save_name}", save_name(name)),

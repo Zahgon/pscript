@@ -1,17 +1,6 @@
-"""
-PScript standard functions.
-
-Functions are declared as ... functions. Methods are written as methods
-(using this), but declared as functions, and then "apply()-ed" to the
-instance of interest. Declaring methods on Object is a bad idea (breaks
-Bokeh, jquery).
-
-"""
 
 import re
 
-# Functions not covered by this lib:
-# isinstance, issubclass, print, len, max, min, callable, chr, ord
 
 FUNCTIONS = {}
 METHODS = {}
@@ -20,102 +9,28 @@ METHOD_PREFIX = "_pymeth_"
 
 
 def get_std_info(code):
-    """Given the JS code for a std function or method, determine the
-    number of arguments, function_deps and method_deps.
-    """
-    _, _, nargs = code.splitlines()[0].partition("nargs:")
-    nargs = [int(i.strip()) for i in nargs.strip().replace(",", " ").split(" ") if i]
-    # Collect dependencies on other funcs/methods
-    sep = FUNCTION_PREFIX
-    function_deps = [part.split("(")[0].strip() for part in code.split(sep)[1:]]
-    sep = METHOD_PREFIX
-    method_deps = [part.split(".")[0].strip() for part in code.split(sep)[1:]]
-    # Reduce and sort
-    function_deps = sorted(set(function_deps))
-    method_deps = sorted(set(method_deps))
-    # Filter
-    function_deps = [dep for dep in function_deps if dep not in method_deps]
-    function_deps = set([dep for dep in function_deps if dep in FUNCTIONS])
-    method_deps = set([dep for dep in method_deps if dep in METHODS])
-    # Recurse
-    for dep in list(function_deps):
-        _update_deps(FUNCTIONS[dep], function_deps, method_deps)
-    for dep in list(method_deps):
-        _update_deps(METHODS[dep], function_deps, method_deps)
-
-    return nargs, sorted(function_deps), sorted(method_deps)
+    pass
 
 
 def _update_deps(code, function_deps, method_deps):
-    """Given the code of a dependency, recursively resolve additional dependencies."""
-    # Collect deps
-    sep = FUNCTION_PREFIX
-    new_function_deps = [part.split("(")[0].strip() for part in code.split(sep)[1:]]
-    sep = METHOD_PREFIX
-    new_method_deps = [part.split(".")[0].strip() for part in code.split(sep)[1:]]
-    # Update
-    new_function_deps = set(new_function_deps).difference(function_deps)
-    new_method_deps = set(new_method_deps).difference(method_deps)
-    function_deps.update(new_function_deps)
-    method_deps.update(new_method_deps)
-    # Recurse
-    for dep in new_function_deps:
-        _update_deps(FUNCTIONS[dep], function_deps, method_deps)
-    for dep in new_method_deps:
-        _update_deps(METHODS[dep], function_deps, method_deps)
-    return function_deps, method_deps
+    pass
 
 
 def get_partial_std_lib(
     func_names, method_names, indent=0, func_prefix=None, method_prefix=None
 ):
-    """Get the code for the PScript standard library consisting of
-    the given function and method names. The given indent specifies how
-    many sets of 4 spaces to prepend.
-    """
-    func_prefix = "var " + FUNCTION_PREFIX if (func_prefix is None) else func_prefix
-    method_prefix = "var " + METHOD_PREFIX if (method_prefix is None) else method_prefix
-    lines = []
-    for name in sorted(func_names):
-        code = FUNCTIONS[name].strip()
-        if "\n" not in code:
-            code = code.rsplit("//", 1)[0].rstrip()  # strip comment from one-liners
-        lines.append("%s%s = %s;" % (func_prefix, name, code))
-    for name in sorted(method_names):
-        code = METHODS[name].strip()
-        # lines.append('Object.prototype.%s%s = %s;' % (METHOD_PREFIX, name, code))
-        lines.append("%s%s = %s;" % (method_prefix, name, code))
-    code = "\n".join(lines)
-    if indent:
-        lines = ["    " * indent + line for line in code.splitlines()]
-        code = "\n".join(lines)
-    return code
+    pass
 
 
 def get_full_std_lib(indent=0):
-    """Get the code for the full PScript standard library.
-
-    The given indent specifies how many sets of 4 spaces to prepend.
-    If the full stdlib is made available in JavaScript, multiple
-    snippets of code can be transpiled without inlined stdlib parts by
-    using ``py2js(..., inline_stdlib=False)``.
-    """
-    return get_partial_std_lib(FUNCTIONS.keys(), METHODS.keys(), indent)
+    pass
 
 
-# todo: now that we have modules, we can have shorter/no prefixes, right?
-# -> though maybe we use them for string replacement somewhere?
 def get_all_std_names():
-    """Get list if function names and methods names in std lib."""
-    return (
-        [FUNCTION_PREFIX + f for f in FUNCTIONS],
-        [METHOD_PREFIX + f for f in METHODS],
-    )
+    pass
 
 
-## ----- Functions
 
-## Special functions: not really in builtins, but important enough to support
 
 FUNCTIONS["perf_counter"] = """function() { // nargs: 0
     if (typeof(process) === "undefined"){return performance.now()*1e-3;}
@@ -124,7 +39,6 @@ FUNCTIONS["perf_counter"] = """function() { // nargs: 0
 
 FUNCTIONS["time"] = """function () {return Date.now() / 1000;} // nargs: 0"""
 
-## Hardcore functions
 
 FUNCTIONS["op_instantiate"] = """function (ob, args) { // nargs: 2
     if ((typeof ob === "undefined") ||
@@ -159,7 +73,6 @@ FUNCTIONS["merge_dicts"] = """function () {
     return res;
 }"""
 
-# args is a list of (name, default) tuples, and is overwritten with names from kwargs
 FUNCTIONS["op_parse_kwargs"] = """
 function (arg_names, arg_values, kwargs, strict) { // nargs: 3
     for (var i=0; i<arg_values.length; i++) {
@@ -297,7 +210,6 @@ FUNCTIONS["format"] = """function (v, fmt) {  // nargs: 2
     return prefix + s;
 }"""
 
-## Normal functions
 
 FUNCTIONS["pow"] = "Math.pow // nargs: 2"
 
@@ -316,7 +228,6 @@ FUNCTIONS["float"] = "Number // nargs: 1"
 
 FUNCTIONS["str"] = "String // nargs: 0 1"
 
-# Note use of "_IS_COMPONENT" to check for flexx.app component classes.
 FUNCTIONS["repr"] = """function (x) { // nargs: 1
     var res; try { res = JSON.stringify(x); } catch (e) { res = undefined; }
     if (typeof res === 'undefined') { res = x._IS_COMPONENT ? x.id : String(x); }
@@ -395,7 +306,6 @@ FUNCTIONS["map"] = """function (func, iter) { // nargs: 2
     return iter.map(func);
 }"""
 
-## Other / Helper functions
 
 FUNCTIONS["truthy"] = """function (v) {
     if (v === null || typeof v !== "object") {return v;}
@@ -461,9 +371,7 @@ FUNCTIONS["op_mult"] = """function (a, b) { // nargs: 2
 }"""
 
 
-## ----- Methods
 
-## List only
 
 METHODS["append"] = """function (x) { // nargs: 1
     if (!Array.isArray(this)) return this.KEY.apply(this, arguments);
@@ -502,7 +410,6 @@ METHODS["sort"] = """function (key, reverse) { // nargs: 0 1 2
     if (reverse) this.reverse();
 }"""
 
-## List and dict
 
 METHODS["clear"] = """function () { // nargs: 0
     if (Array.isArray(this)) {
@@ -538,9 +445,7 @@ METHODS["pop"] = """function (i, d) { // nargs: 1 2
     } else return this.KEY.apply(this, arguments);
 }"""
 
-## List and str
 
-# start and stop nor supported for list on Python, but for simplicity, we do
 METHODS["count"] = """function (x, start, stop) { // nargs: 1 2 3
     start = (start === undefined) ? 0 : start;
     stop = (stop === undefined) ? this.length : stop;
@@ -578,9 +483,7 @@ METHODS["index"] = """function (x, start, stop) { // nargs: 1 2 3
     var e = Error(x); e.name='ValueError'; throw e;
 }"""
 
-## Dict only
 
-# note: fromkeys is a classmethod, and we dont support it.
 
 METHODS["get"] = """function (key, d) { // nargs: 1 2
     if (this.constructor !== Object) return this.KEY.apply(this, arguments);
@@ -631,12 +534,8 @@ METHODS["values"] = """function () { // nargs: 0
     return res;
 }"""
 
-## String only
 
-# ignores: encode, decode, format_map, isprintable, maketrans
 
-# Not a Python method, but a method that we need, and is only ECMA 6
-# http://stackoverflow.com/a/5450113/2271927
 METHODS["repeat"] = """function(count) { // nargs: 0
     if (this.repeat) return this.repeat(count);
     if (count < 1) return '';
@@ -741,17 +640,6 @@ METHODS["isdecimal"] = """function () { // nargs: 0
     return Boolean(/^[0-9]+$/.test(this));
 }"""
 
-# The thing about isdecimal, isdigit and isnumeric.
-# https://stackoverflow.com/a/36800319/2271927
-#
-# * isdecimal() (Only Decimal Numbers)
-# * str.isdigit() (Decimals, Subscripts, Superscripts)
-# * isnumeric() (Digits, Vulgar Fractions, Subscripts, Superscripts,
-#   Roman Numerals, Currency Numerators)
-#
-# In other words, isdecimal is the most strict. We used to have
-# isnumeric with isdecimal's implementation, so we provide isnumeric
-# and isdigit as aliases for now.
 
 METHODS["isnumeric"] = METHODS["isdigit"] = METHODS["isdecimal"]
 
